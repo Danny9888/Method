@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <title>Módulo de Solicitudes (Tickets)</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+  :root{
+    --bg:#0f172a; --card:#0b1224; --muted:#94a3b8; --txt:#e2e8f0;
+    --accent:#38bdf8; --ok:#22c55e; --warn:#f59e0b; --danger:#ef4444;
+    --border:#1f2a44; --radius:14px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--txt)}
+  .app-header,.app-footer{padding:1rem 1.25rem;border-bottom:1px solid var(--border)}
+  .app-footer{border-top:1px solid var(--border);border-bottom:none;text-align:center}
+  .container{max-width:1100px;margin:1.25rem auto;padding:0 1rem;display:grid;gap:1rem}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem}
+  h1,h2{margin:.25rem 0 .75rem}
+  .muted{color:var(--muted)}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.75rem}
+  @media (max-width:900px){.grid{grid-template-columns:1fr}}
+  label{display:flex;flex-direction:column;gap:.25rem;font-size:.95rem}
+  input,select,textarea{padding:.5rem .6rem;border-radius:10px;border:1px solid var(--border);background:#0a1122;color:var(--txt)}
+  textarea{resize:vertical}
+  .actions{display:flex;gap:.5rem;margin-top:.5rem}
+  .actions.right{justify-content:flex-end}
+  .btn{padding:.5rem .9rem;border-radius:999px;border:1px solid var(--border);background:#0e1630;color:var(--txt);cursor:pointer}
+  .btn:hover{outline:1px solid var(--accent)}
+  .btn.primary{background:linear-gradient(180deg,#0ea5e9,#0284c7);border:none}
+  .btn.danger{background:linear-gradient(180deg,#ef4444,#b91c1c);border:none}
+  .msg{min-height:1.25rem;color:var(--muted)}
+  .table-wrap{overflow:auto;border:1px solid var(--border);border-radius:12px}
+  .table{width:100%;border-collapse:collapse}
+  .table th,.table td{padding:.6rem;border-bottom:1px solid var(--border);vertical-align:top}
+  .table thead th{position:sticky;top:0;background:#0d1530}
+  .badge{padding:.15rem .5rem;border-radius:999px;font-size:.75rem}
+  .badge.ok{background:#093918;color:#a7f3d0}
+  .badge.warn{background:#3b2e06;color:#fde68a}
+  .badge.muted{background:#1f2a44;color:#cbd5e1}
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <h1>Solicitudes de Servicio</h1>
+    <p class="muted">Prototipo basado en Kendall & Kendall (DFD + Prototipo)</p>
+  </header>
+
+  <main class="container">
+    <!-- FORMULARIO -->
+    <section class="card">
+      <h2>Registrar solicitud</h2>
+      <form id="ticketForm" novalidate>
+        <div class="grid">
+          <label>
+            ID Empleado
+            <input id="idEmpleado" type="text" maxlength="20" required placeholder="EJ: EMP-001" />
+          </label>
+          <label>
+            Categoría
+            <select id="categoria" required>
+              <option value="">-- Seleccionar --</option>
+              <option>Infraestructura</option>
+              <option>Aplicaciones</option>
+              <option>RRHH</option>
+              <option>Otro</option>
+            </select>
+          </label>
+          <label>
+            Prioridad
+            <select id="prioridad" required>
+              <option value="">-- Seleccionar --</option>
+              <option>Baja</option>
+              <option>Media</option>
+              <option>Alta</option>
+            </select>
+          </label>
+        </div>
+        <label>
+          Descripción
+          <textarea id="descripcion" rows="3" maxlength="500" required placeholder="Describa el requerimiento..."></textarea>
+        </label>
+        <div class="actions">
+          <button type="submit" class="btn primary">Crear ticket</button>
+          <button type="reset" class="btn" id="btnFormReset">Limpiar</button>
+        </div>
+        <p id="formMsg" class="msg" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <!-- FILTROS -->
+    <section class="card">
+      <h2>Listado</h2>
+      <div class="grid">
+        <label>
+          Filtro categoría
+          <select id="fCategoria">
+            <option value="">(todas)</option>
+            <option>Infraestructura</option>
+            <option>Aplicaciones</option>
+            <option>RRHH</option>
+            <option>Otro</option>
+          </select>
+        </label>
+        <label>
+          Filtro estado
+          <select id="fEstado">
+            <option value="">(todos)</option>
+            <option>Abierto</option>
+            <option>En Proceso</option>
+            <option>Cerrado</option>
+          </select>
+        </label>
+        <div class="actions right">
+          <button id="btnExport" class="btn" type="button">Exportar JSON</button>
+          <button id="btnResetData" class="btn danger" type="button">Borrar todo</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table class="table" id="ticketsTable">
+          <thead>
+            <tr>
+              <th>ID Ticket</th>
+              <th>ID Empleado</th>
+              <th>Categoría</th>
+              <th>Prioridad</th>
+              <th>Estado</th>
+              <th>Fecha</th>
+              <th>Descripción</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody><!-- filas dinámicas --></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="app-footer">
+    <small>© 2025 – Prototipo académico</small>
+  </footer>
+
+  <script>
+  "use strict";
+
+  // Iniciar cuando el DOM esté listo
+  document.addEventListener("DOMContentLoaded", init);
+
+  function init() {
+    // === Persistencia (localStorage) ===
+    const STORAGE_KEY = "tickets_store";
+    const storage = {
+      read() {
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+        catch { return []; }
+      },
+      write(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); },
+      clear() { localStorage.removeItem(STORAGE_KEY); }
+    };
+
+    // === Referencias DOM ===
+    const form = document.getElementById("ticketForm");
+    const msg = document.getElementById("formMsg");
+    const btnFormReset = document.getElementById("btnFormReset");
+    const tBody = document.querySelector("#ticketsTable tbody");
+    const fCategoria = document.getElementById("fCategoria");
+    const fEstado = document.getElementById("fEstado");
+    const btnExport = document.getElementById("btnExport");
+    const btnReset = document.getElementById("btnResetData");
+
+    // === Eventos ===
+    form.addEventListener("submit", onSubmit);
+    btnFormReset.addEventListener("click", () => showMsg(""));
+    btnExport.addEventListener("click", exportJson);
+    btnReset.addEventListener("click", clearAll);
+    fCategoria.addEventListener("change", renderTable);
+    fEstado.addEventListener("change", renderTable);
+
+    // Delegación: clicks en botones dentro de la tabla
+    tBody.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-action='toggle']");
+      if (btn) updateState(btn.dataset.id);
+    });
+
+    // Cargar tabla al inicio
+    renderTable();
+
+    // === Handlers ===
+    function onSubmit(e) {
+      e.preventDefault();
+      const data = readForm();
+      const errors = validate(data);
+      if (errors.length) {
+        showMsg(errors.join(" · "), "warn");
+        return;
+      }
+      const ticket = createTicket(data);
+      saveTicket(ticket);
+      form.reset();
+      showMsg(`Ticket creado: ${ticket.idTicket}`, "ok");
+      renderTable();
+    }
+
+    function exportJson() {
+      const data = storage.read();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "tickets.json";
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(a.href);
+      a.remove();
+    }
+
+    function clearAll() {
+      if (!confirm("¿Borrar todas las solicitudes? Esta acción no se puede deshacer.")) return;
+      storage.clear();
+      renderTable();
+      showMsg("Se borraron todas las solicitudes.");
+    }
+
+    // === Dominio ===
+    function readForm() {
+      return {
+        idEmpleado: document.getElementById("idEmpleado").value.trim(),
+        categoria: document.getElementById("categoria").value,
+        prioridad: document.getElementById("prioridad").value,
+        descripcion: sanitize(document.getElementById("descripcion").value.trim())
+      };
+    }
+
+    function validate({ idEmpleado, categoria, prioridad, descripcion }) {
+      const errs = [];
+      if (!idEmpleado) errs.push("ID Empleado es obligatorio");
+      if (!categoria) errs.push("Categoría es obligatoria");
+      if (!prioridad) errs.push("Prioridad es obligatoria");
+      if (!descripcion) errs.push("Descripción es obligatoria");
+      if (descripcion.length > 500) errs.push("Descripción excede 500 caracteres");
+      return errs;
+    }
+
+    function nextId() {
+      const now = new Date();
+      const ym = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}`;
+      const seq = Math.floor(Math.random() * 9000 + 1000);
+      return `T-${ym}-${seq}`;
+    }
+
+    function createTicket({ idEmpleado, categoria, prioridad, descripcion }) {
+      return {
+        idTicket: nextId(),
+        idEmpleado,
+        categoria,
+        prioridad,
+        descripcion,
+        estado: "Abierto",
+        fechaCreacion: new Date().toISOString()
+      };
+    }
+
+    function saveTicket(ticket) {
+      const all = storage.read();
+      all.push(ticket);
+      storage.write(all);
+    }
+
+    function cycleState(estadoActual) {
+      const flow = ["Abierto", "En Proceso", "Cerrado"];
+      const idx = flow.indexOf(estadoActual);
+      return flow[(idx + 1) % flow.length];
+    }
+
+    function updateState(idTicket) {
+      const all = storage.read();
+      const idx = all.findIndex(x => x.idTicket === idTicket);
+      if (idx === -1) return;
+      all[idx].estado = cycleState(all[idx].estado);
+      storage.write(all);
+      renderTable();
+    }
+
+    // === Presentación ===
+    function renderTable() {
+      const rows = storage.read()
+        .filter(applyFilters)
+        .sort((a, b) => b.fechaCreacion.localeCompare(a.fechaCreacion))
+        .map(toRow)
+        .join("");
+      tBody.innerHTML = rows || `<tr><td colspan="8" class="muted">No hay solicitudes</td></tr>`;
+    }
+
+    function applyFilters(t) {
+      const byCat = fCategoria.value ? t.categoria === fCategoria.value : true;
+      const bySt  = fEstado.value ? t.estado === fEstado.value : true;
+      return byCat && bySt;
+    }
+
+    function toRow(t) {
+      const badgeClass = t.estado === "Abierto" ? "muted"
+                        : t.estado === "En Proceso" ? "warn" : "ok";
+      return `
+        <tr>
+          <td>${t.idTicket}</td>
+          <td>${t.idEmpleado}</td>
+          <td>${t.categoria}</td>
+          <td>${t.prioridad}</td>
+          <td><span class="badge ${badgeClass}">${t.estado}</span></td>
+          <td>${formatDate(t.fechaCreacion)}</td>
+          <td>${escapeHtml(t.descripcion)}</td>
+          <td>
+            <button class="btn" type="button" data-action="toggle" data-id="${t.idTicket}">Cambiar estado</button>
+          </td>
+        </tr>
+      `;
+    }
+
+    function showMsg(text, type = "") {
+      msg.textContent = text || "";
+      msg.style.color = type === "ok" ? "#a7f3d0" : (type === "warn" ? "#fde68a" : "var(--muted)");
+    }
+
+    function formatDate(iso) {
+      try { return new Date(iso).toLocaleString(); }
+      catch { return iso; }
+    }
+
+    // === Utilidades ===
+    function sanitize(text) {
+      return text.replace(/[\x00-\x1F\x7F]/g, "").replace(/\s+/g, " ");
+    }
+    function escapeHtml(text) {
+      return text
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+  }
+  </script>
+</body>
+</html>
